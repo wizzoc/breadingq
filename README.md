@@ -2,7 +2,7 @@
 
 A real-time shared queue for a restaurant kitchen's breading station. Anyone can add a request from any iPad in the kitchen, and every iPad shows the same ordered list within a moment. It has been trialled during real shifts in the kitchen where I work.
 
-<p align="center"><img src="assets/screenshot.png" alt="BreadingQ on an iPad" width="400"></p>
+<p align="center"><img src="assets/breadingq.png" alt="BreadingQ on an iPad" width="400"></p>
 
 ## Why it exists
 
