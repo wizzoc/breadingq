@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BreadingQ</title>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #FFFFFF;
+            color: #1A1A1A;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        h1 {
+            color: #E51636;
+            font-size: 36px;
+            margin-bottom: 15px;
+        }
+        h2 {
+            color: #004F71;
+            font-size: 28px;
+            margin-top: 15px;
+        }
+        button { 
+            font-size: 24px; 
+            padding: 20px 40px; 
+            margin: 10px; 
+            border-radius: 8px; 
+            color: white; 
+            background-color: #E51636; 
+            border: none;
+            cursor: pointer;
+        }
+        button:active {
+            background-color: #004F71;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 20px auto;
+            max-width: 500px;
+        }
+        
+        li {
+            background-color: #F4F4F4;
+            padding: 15px 20px;
+            margin: 15px;
+            border-radius: 8px;
+            font-size: 22px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        li span:first-child {
+            min-width: 40px;
+            text-align: center;
+        }
+
+        li span:nth-child(2) {
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        li span:last-child {
+            min-width: 80px;
+            text-align: right;
+        }
+
+        li:active {
+            background-color: #E51636;
+            color: white;
+        }
+        .hidden {
+            display: none;
+        }
+
+        #plus-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 36px;
+            padding: 15px 60px;
+        }
+
+        #buttons {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #buttons button {
+            background-color: #004F71;
+        }
+
+        #quantity-menu {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #FFFFFF;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        #quantity-product-name {
+            font-size: 24px;
+            color: #004F71;
+            margin: 0 0 15px 0;
+        }
+
+        #quantity-options button {
+            background-color: #004F71;
+            margin: 5px;
+        }
+
+        #quantity-input {
+            font-size: 24px;
+            width: 80px;
+            padding: 10px;
+            text-align: center;
+            border: 2px solid #004F71;
+            border-radius: 8px;
+            margin-right: 10px;
+        }
+
+        #position-menu {
+            position: fixed;
+            background-color: #FFFFFF;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        #position-options button {
+            background-color: #004F71;
+            margin: 5px;
+        }
+
+        #language-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            font-size: 18px;
+        }
+        
+    </style>
+</head>
+<body>
+    <h1>BreadingQ</h1>
+    
+    <div id="buttons" class="hidden"></div>
+
+    <h2>Queue</h2>
+    <ul id="queue"></ul>
+
+    <div id="quantity-menu" class="hidden">
+        <p id="quantity-product-name"></p>
+        <div id="quantity-options"></div>
+    </div>
+
+    <div id="position-menu" class="hidden">
+        <p>Move to position:</p>
+        <div id="position-options"></div>
+    </div>
+
+    <button id="plus-button">+</button>
+
+    <button id="language-toggle">ES</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let currentLanguage = 'english';
+
+        // list our array of products with their english and spanish names
+        const products = [
+            {id: "filets", english: "Filets", spanish: "Filetes"},
+            {id : "nuggets", english: "Nuggets", spanish: "Nuggets"},
+            {id: "spicy", english: "Spicy Filets", spanish: "Filetes Picantes"},
+            {id: "strips", english: "Strips", spanish: "Tiras"},
+            {id: "grilled_nuggets", english: "Grilled Nuggets", spanish: "Nuggets a la Parilla"},
+            {id: "grilled_filets", english: "Grilled Filets", spanish: "Filetes a la Parilla"}
+        ];
+
+        let selectedProduct = null;
+        let holdTimer = null;
+
+        // find the html element for our div of buttons
+        const buttonsElement = document.getElementById('buttons');
+
+        let plusButton = document.getElementById('plus-button');
+        plusButton.onclick = () => {
+            buttonsElement.classList.remove('hidden'); 
+        };
+
+        const languageToggle = document.getElementById('language-toggle');
+        languageToggle.onclick = () => {
+            if (currentLanguage === 'english') {
+                currentLanguage = 'spanish';
+                languageToggle.textContent = 'EN';
+            } else {
+                currentLanguage = 'english';
+                languageToggle.textContent = 'ES';
+            }
+            refreshButtons();
+            refreshQueue();
+        };
+
+        products.forEach((product) => {
+            const button = document.createElement('button');
+            button.textContent = product.english;
+            button.ontouchstart = () => {
+                holdTimer = setTimeout(() => {
+                    selectedProduct = product;
+                    buttonsElement.classList.add('hidden');
+                    showQuantityMenu();
+                    holdTimer = null;
+                }, 500);
+            };
+
+            button.ontouchend = () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    holdTimer = null;
+                    addItem(product.id);
+                    buttonsElement.classList.add('hidden');
+                }
+            };
+            buttonsElement.appendChild(button);
+
+            button.onmousedown = button.ontouchstart;
+            button.onmouseup = button.ontouchend;
+        });
+
+        const socket = io();
+
+        function addItem(product) {
+            socket.emit('add_item', { product: product, quantity: 1 });
+        }
+
+        function addItemWithQuantity(product, quantity) {
+            socket.emit('add_item', { product: product, quantity: quantity });
+        }
+
+        function showQuantityMenu() {
+            const nameElement = document.getElementById('quantity-product-name');
+            const optionsElement = document.getElementById('quantity-options');
+            const menuElement = document.getElementById('quantity-menu');
+            
+            nameElement.textContent = selectedProduct[currentLanguage];
+            optionsElement.innerHTML = '';
+            
+            if (selectedProduct.id === 'nuggets') {
+                const quantities = ['Quarter', 'Half', '3/4', 'Full'];
+                quantities.forEach((qty) => {
+                    const button = document.createElement('button');
+                    button.textContent = qty;
+                    button.onclick = () => {
+                        addItemWithQuantity(selectedProduct.id, qty);
+                        menuElement.classList.add('hidden');
+                    };
+                    optionsElement.appendChild(button);
+                });
+            } else {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = '1';
+                input.value = '1';
+                input.id = 'quantity-input';
+                
+                const submitButton = document.createElement('button');
+                submitButton.textContent = 'Add';
+                submitButton.onclick = () => {
+                    const qty = parseInt(input.value) || 1;
+                    addItemWithQuantity(selectedProduct.id, qty);
+                    menuElement.classList.add('hidden');
+                };
+                
+                optionsElement.appendChild(input);
+                optionsElement.appendChild(submitButton);
+            }
+            
+            menuElement.classList.remove('hidden');
+        }
+
+        function showPositionMenu(currentItem, currentIndex, queue, clickedElement) {
+            const optionsElement = document.getElementById('position-options');
+            const menuElement = document.getElementById('position-menu');
+            
+            optionsElement.innerHTML = '';
+            
+            queue.forEach((item, index) => {
+                if (index !== currentIndex) {
+                    const button = document.createElement('button');
+                    button.textContent = (index + 1);
+                    button.onclick = () => {
+                        socket.emit('reorder_item', currentItem.id, item.id);
+                        menuElement.classList.add('hidden');
+                    };
+                    optionsElement.appendChild(button);
+                }
+            });
+            
+            const rect = clickedElement.getBoundingClientRect();
+            menuElement.style.top = rect.top + 'px';
+            menuElement.style.right = (window.innerWidth - rect.left + 10) + 'px';
+            
+            menuElement.classList.remove('hidden');
+        }
+        
+        function refreshButtons() {
+            buttonsElement.innerHTML = '';
+            products.forEach((product) => {
+                const button = document.createElement('button');
+                button.textContent = product[currentLanguage];
+                button.ontouchstart = () => {
+                    holdTimer = setTimeout(() => {
+                        selectedProduct = product;
+                        buttonsElement.classList.add('hidden');
+                        showQuantityMenu();
+                        holdTimer = null;
+                    }, 500);
+                };
+
+                button.ontouchend = () => {
+                    if (holdTimer) {
+                        clearTimeout(holdTimer);
+                        holdTimer = null;
+                        addItem(product.id);
+                        buttonsElement.classList.add('hidden');
+                    }
+                };
+                
+                button.onmousedown = button.ontouchstart;
+                button.onmouseup = button.ontouchend;
+                buttonsElement.appendChild(button);
+            });
+        }
+
+        function refreshQueue() {
+            socket.emit('request_queue');
+        }
+
+        socket.on('queue_update', (queue) => {
+            const queueElement = document.getElementById('queue');
+            queueElement.innerHTML = '';
+            let draggedItem = null;
+            
+            queue.forEach((item) => {
+                const date = new Date(item.timestamp);
+                const li = document.createElement('li');
+                let minutes = date.getMinutes();
+                li.dataset.itemId = item.id;
+
+                if (minutes < 10) {
+                    minutes = "0" + minutes;
+                }
+
+                let hours = date.getHours();
+                hours = hours % 12 || 12;
+
+                const index = queue.indexOf(item);
+
+                const positionSpan = document.createElement('span');
+                positionSpan.textContent = (index + 1) + " ";
+                positionSpan.style.fontWeight = "bold";
+                positionSpan.style.marginRight = "10px";
+
+                positionSpan.onclick = (event) => {
+                    event.stopPropagation();
+                    showPositionMenu(item, index, queue, positionSpan);
+                };
+
+                const productSpan = document.createElement('span');
+                let productText = products.find((product) => product.id === item.product)[currentLanguage];
+                if (item.quantity !== 1) {
+                    productText += " (" + item.quantity + ")";
+                }
+                productSpan.textContent = productText;
+
+                const timeSpan = document.createElement('span');
+                timeSpan.textContent = hours + ":" + minutes;
+
+                li.appendChild(positionSpan);
+                li.appendChild(productSpan);
+                li.appendChild(timeSpan);
+                li.draggable = true;
+                
+                li.ondragstart = () => {
+                    draggedItem = item;
+                };
+                
+                li.ondragover = (event) => {
+                    event.preventDefault();
+                };
+
+                li.ontouchstart = (event) => {
+                    draggedItem = item;
+                };
+
+                li.ontouchmove = (event) => {
+                    event.preventDefault();
+                };
+
+                li.ontouchend = event => {
+                    const touch = event.changedTouches[0];
+                    const x = touch.clientX;
+                    const y = touch.clientY;
+
+                    const targetElement = document.elementFromPoint(x, y);
+
+                    socket.emit('reorder_item', draggedItem.id, targetElement.dataset.itemId);
+                };
+                
+                li.ondrop = (event) => {
+                    event.preventDefault();
+                    socket.emit('reorder_item', draggedItem.id, item.id);
+                };
+                
+                li.onclick = () => {
+                    socket.emit('remove_item', item.id);
+                };
+                
+                queueElement.appendChild(li);
+            });
+     });
+    </script>
+</body>
+</html>
